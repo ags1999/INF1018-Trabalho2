@@ -9,8 +9,8 @@ v3 = -16(%rbp)
 v4 = -8(%rbp)
 */
 
-int linhaRet[50];
-int lAt = 0;
+int linhaSimples[50];
+int lsAt = 0;
 
 void inicio(uc ** codigo)
 {
@@ -24,10 +24,7 @@ void inicio(uc ** codigo)
     (*codigo)[6] = 0xec;
     (*codigo)[7] = 0x20;
     iAt += 8;
-    linhaRet[0] = 0;
-    linhaRet[1] = 1;
-    linhaRet[2] = 4;
-    lAt += 3;
+
 }
 
 
@@ -64,7 +61,7 @@ static int varpc1(uc* linha, uc** codigo)
                 default:
                     exit(1);
         }
-            lAt += 
+            
             tmLinha += 3;
             iAt += 4;
             break;
@@ -264,6 +261,8 @@ static void atribuicao (uc tipo, uc* linha, uc** codigo)
             
         }
         iAt +=4;
+        linhaSimples[lsAt] = iAt;
+        lsAt++;
     }
     else
     {
@@ -279,6 +278,8 @@ static void atribuicao (uc tipo, uc* linha, uc** codigo)
             (*codigo)[iAt + 2] = 0xd6;
         }
         iAt +=3;
+        linhaSimples[lsAt] = iAt;
+        lsAt++;
     }
     
 }
