@@ -3,4 +3,4 @@
 
 typedef int (*funcp) ();
 typedef unsigned char uc;
-funcp compilaSimples (FILE *f, unsigned char** codigo);
+funcp compilaSimples (FILE *f, unsigned char codigo[]);

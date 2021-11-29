@@ -9,8 +9,19 @@ v3 = -16(%rbp)
 v4 = -8(%rbp)
 */
 
-int linhaSimples[50];
+// resolver constantes negativas
+
+int linhaSimples[50];// total de instruçoes até a linha i+1
 int lsAt = 0;
+
+typedef struct tabelaOffset
+{
+    uc posicaoCodigo; //total de instruçoes até o valor do destino
+    uc destino;
+} Tabela;
+
+Tabela* offset;
+int indiceTabela = 0;
 
 void inicio(uc ** codigo)
 {
@@ -182,9 +193,10 @@ static void varpc2(uc* linha, uc** codigo)
             linha += 8;
             break;
 
-    default:
-        exit(1);
-        break;
+        default:
+            printf("Erro varpc2\n");
+            exit(1);
+            break;
     }
 
     return;
@@ -196,9 +208,11 @@ static void expressao(uc *linha, uc** codigo)
     //varpc op varpc
     
     uc expr = 0;
-    
+
     expr  = varpc1(linha, codigo);
-    linha += expr + 2;
+    
+    linha += expr + 3;
+    printf("%c = tanto\n", linha[0]);
     varpc2(linha, codigo);
     switch (expr) // r10d op r11d
     {
@@ -263,6 +277,7 @@ static void atribuicao (uc tipo, uc* linha, uc** codigo)
         iAt +=4;
         linhaSimples[lsAt] = iAt;
         lsAt++;
+        
     }
     else
     {
@@ -280,13 +295,113 @@ static void atribuicao (uc tipo, uc* linha, uc** codigo)
         iAt +=3;
         linhaSimples[lsAt] = iAt;
         lsAt++;
+        
     }
     
 }
 
-funcp compilaSimples (FILE *f, uc **codigo)
+static int tipoDesvio(uc tipo, uc valor)
 {
-    inicio(codigo);
+    if(tipo == 'p')
+    {
+        if(valor == '1')
+        {
+            return 1;
+        }
+        else
+        {
+            return 2;
+        }
+    }
+    else
+    {
+        switch (valor)
+        {
+        case '1':
+            return 3;
+
+        case '2':
+            return 4;
+
+        case '3':
+            return 5;
+
+        case '4':
+            return 6;
+
+        }
+    }
+    return -1;
+}
+
+static void desvio(uc* linha, uc** codigo)
+{
+    int tipo = tipoDesvio(linha[3], linha[4]);
+    uc voltar = linha[6] - 1;
+    (*codigo)[iAt] = 0x83; 
+    switch (tipo)
+    {
+    case 1: //p1
+        (*codigo)[iAt + 1] = 0xff;
+        (*codigo)[iAt + 2] = 0x00;
+        iAt += 3;
+        break;
+    
+    case 2: //p2
+        (*codigo)[iAt + 1] = 0xfe;
+        (*codigo)[iAt + 2] = 0x00;
+        iAt += 3;
+        break;
+
+    case 3: //v1
+        (*codigo)[iAt + 1] = 0x7d;
+        (*codigo)[iAt + 2] = 0xe0;
+        (*codigo)[iAt + 3] = 0x00;
+        iAt += 4;
+        break;
+
+    case 4: //v2
+        (*codigo)[iAt + 1] = 0x7d;
+        (*codigo)[iAt + 2] = 0xe8;
+        (*codigo)[iAt + 3] = 0x00;
+        iAt += 4;
+        break;
+
+    case 5: //v3
+        (*codigo)[iAt + 1] = 0x7d;
+        (*codigo)[iAt + 2] = 0xf0;
+        (*codigo)[iAt + 3] = 0x00;
+        iAt += 4;
+        break;
+
+    case 6: //v4
+        (*codigo)[iAt + 1] = 0x7d;
+        (*codigo)[iAt + 2] = 0xf8;
+        (*codigo)[iAt + 3] = 0x00;
+        iAt += 4;
+        break;
+
+    default:
+        printf("Erro no desvio\n");
+        exit(1);
+        break;
+    }
+
+    (*codigo)[iAt] = 0x75; // jne 
+    (*codigo)[iAt + 1] = 0x0; 
+
+    iAt += 2;
+    linhaSimples[lsAt] = iAt;
+    lsAt++;
+    offset[indiceTabela].posicaoCodigo = iAt - 1;
+    offset[indiceTabela].destino = voltar;
+
+}
+
+funcp compilaSimples (FILE *f, uc codigo[])
+{
+    inicio(&codigo);
+    offset = (Tabela*)malloc(sizeof(Tabela)*50);
     //int tmLinha = 0;
     int lnAtual = 0;
     int charAtual = 0;
@@ -303,7 +418,6 @@ funcp compilaSimples (FILE *f, uc **codigo)
     while(!feof(f))
     {
         vetorCodigo[lnAtual][charAtual] = fgetc(f);
-        char oof = vetorCodigo[lnAtual][charAtual];
         if ((vetorCodigo[lnAtual][charAtual] == '\n'))
         {
             
@@ -316,26 +430,32 @@ funcp compilaSimples (FILE *f, uc **codigo)
         
     }
     vetorCodigo[lnAtual][charAtual - 1] = 0;
-    printf("%s\n", vetorCodigo[1]);
+    //printf("%s\n", vetorCodigo[1]);
 
     for (int i = 0; i <= lnAtual; i++)
     {
         switch (vetorCodigo[i][0])
         {
             case 'v':       //atribuição para variaável
-                atribuicao('v', vetorCodigo[i], codigo);
+                atribuicao('v', vetorCodigo[i], &codigo);
                 break;
 
             case 'p':       //atribuição para parâmetro
-                atribuicao('p', vetorCodigo[i], codigo);
+                atribuicao('p', vetorCodigo[i], &codigo);
                 break;
 
             case 'i':
+                desvio(vetorCodigo[i], &codigo);
                 break;
 
             case 'r':
-                (*codigo)[iAt] = 0xc9;
-                (*codigo)[iAt + 1] = 0xc3;
+                linhaSimples[lsAt] = iAt;
+                codigo[iAt] = 0x8b; // mov    -0x20(%rbp),%eax
+                codigo[iAt + 1] = 0x45;
+                codigo[iAt + 2] = 0xe0;
+                codigo[iAt + 3] = 0xc9; // leave
+                codigo[iAt + 4] = 0xc3;// ret
+
                 break;
 
             default:
@@ -343,12 +463,19 @@ funcp compilaSimples (FILE *f, uc **codigo)
         }
     }
     
+    for (int i = 0; i < indiceTabela; i++)
+    {
+        codigo[offset->posicaoCodigo] = linhaSimples[offset->destino] - iAt;
+    }
+    
 
     for(int i = 0; i < 50; i++)
     {
         free(vetorCodigo[i]);
+        printf("%hhx\n", (*codigo + i));
     }
     free(vetorCodigo);
+    
     return (funcp)(codigo);
 }
 

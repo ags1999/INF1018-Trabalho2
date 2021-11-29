@@ -3,7 +3,6 @@
 int main(int argc, char *argv[])
 {
     uc *codigo = (uc *)malloc(1024 * sizeof(uc));
-
     if (argc < 2)
     {
         exit(1);
@@ -12,10 +11,12 @@ int main(int argc, char *argv[])
     const char *nomeInput = argv[1];
 
     FILE *input = fopen(nomeInput, "r");
-    compilaSimples(input, &codigo);
+    funcp soma = compilaSimples(input, codigo);
 
-    //FILE* output = NULL;
+    printf("%d\n", soma(5, 6));
+
+    fclose(input);
 
     return 0;
 }
-//gcc -Wall main.c compilaSimples.c -g -o compilador -Wa,--execstack
+//gcc -Wall main.c compilalins.c -g -o compilador -Wa,--execstack && ./compilador teste.lins
