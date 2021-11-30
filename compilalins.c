@@ -1,5 +1,8 @@
 #include "compilar.h"
 
+//Alexandre Sanson - 1711450
+//Luana Durand - 1820807
+
 unsigned int iAt = 0; // instrução atual
 
 /*
@@ -445,7 +448,7 @@ funcp compilaSimples (FILE *f, uc codigo[])
         
     }
     vetorCodigo[lnAtual][charAtual - 1] = 0;
-    //printf("%s\n", vetorCodigo[1]);
+
 
     for (int i = 0; i <= lnAtual; i++)
     {
@@ -488,7 +491,7 @@ funcp compilaSimples (FILE *f, uc codigo[])
     for(int i = 0; i < 50; i++)
     {
         free(vetorCodigo[i]);
-        //printf("%hhx\n", codigo[i]);
+
     }
     printcodigo(codigo);
     free(vetorCodigo);
