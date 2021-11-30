@@ -80,7 +80,7 @@ static int varpc1(uc* linha, uc** codigo)
         case 'p':
             (*codigo)[iAt] = 0x41;
             (*codigo)[iAt + 1] = 0x89;
-            if (linha[1] == 1)
+            if (linha[1] == '1')
             {
                 (*codigo)[iAt + 2] = 0xfa;  //mov    %edi,%r10d
             }
@@ -94,7 +94,7 @@ static int varpc1(uc* linha, uc** codigo)
 
         case '$':
 
-            while(linha[tmLinha] != ' ')
+            while(linha[tmLinha + 1] != 32)
             //for (int i = 0; i < 4; i++)
             {
                 constante *= 10;
@@ -174,14 +174,14 @@ static void varpc2(uc* linha, uc** codigo)
 
         case '$':
 
-            while(linha[tmLinha] != ' ')
+            while(linha[tmLinha + 1] != 32)
             {
                 constante *= 10;
                 constante += linha[tmLinha+1] - 48;
                 tmLinha++;
             }
                 
-            (*codigo)[iAt] = 0x41;     //mov    $Constante,%r10d
+            (*codigo)[iAt] = 0x41;     //mov    $Constante,%r11d
             (*codigo)[iAt + 1] = 0xbb;
             iAt += 2;
             for(int i = 0; i < 4; i++)
@@ -211,9 +211,8 @@ static void expressao(uc *linha, uc** codigo)
 
     expr  = varpc1(linha, codigo);
     
-    linha += expr + 3;
-    printf("%c = tanto\n", linha[0]);
-    varpc2(linha, codigo);
+
+    varpc2(&linha[5], codigo);
     switch (expr) // r10d op r11d
     {
         case '+':
@@ -245,6 +244,9 @@ static void expressao(uc *linha, uc** codigo)
 
 static void atribuicao (uc tipo, uc* linha, uc** codigo)
 {
+    linhaSimples[lsAt] = iAt;
+    lsAt++;
+    
     expressao(linha + 5, codigo);
     if (tipo == 'v')
     {
@@ -275,8 +277,7 @@ static void atribuicao (uc tipo, uc* linha, uc** codigo)
             
         }
         iAt +=4;
-        linhaSimples[lsAt] = iAt;
-        lsAt++;
+        
         
     }
     else
@@ -293,8 +294,7 @@ static void atribuicao (uc tipo, uc* linha, uc** codigo)
             (*codigo)[iAt + 2] = 0xd6;
         }
         iAt +=3;
-        linhaSimples[lsAt] = iAt;
-        lsAt++;
+
         
     }
     
@@ -336,6 +336,9 @@ static int tipoDesvio(uc tipo, uc valor)
 
 static void desvio(uc* linha, uc** codigo)
 {
+    linhaSimples[lsAt] = iAt;
+    lsAt++;
+
     int tipo = tipoDesvio(linha[3], linha[4]);
     uc voltar = linha[6] - 1;
     (*codigo)[iAt] = 0x83; 
@@ -391,11 +394,23 @@ static void desvio(uc* linha, uc** codigo)
     (*codigo)[iAt + 1] = 0x0; 
 
     iAt += 2;
-    linhaSimples[lsAt] = iAt;
-    lsAt++;
+    
     offset[indiceTabela].posicaoCodigo = iAt - 1;
     offset[indiceTabela].destino = voltar;
 
+}
+
+static void printcodigo(uc codigo[])
+{
+    printf("%hhx\n", codigo[0]);
+    printf("%hhx %hhx %hhx\n", codigo[1], codigo[2], codigo[3]);
+    printf("%hhx %hhx %hhx %hhx\n", codigo[4], codigo[5], codigo[6], codigo[7]);
+    for (int i = 8; i < iAt; i++)
+    {
+        printf("%hhx\n", codigo[i]);
+        
+    }
+    
 }
 
 funcp compilaSimples (FILE *f, uc codigo[])
@@ -449,12 +464,13 @@ funcp compilaSimples (FILE *f, uc codigo[])
                 break;
 
             case 'r':
-                linhaSimples[lsAt] = iAt;
+                //linhaSimples[lsAt] = iAt;
                 codigo[iAt] = 0x8b; // mov    -0x20(%rbp),%eax
                 codigo[iAt + 1] = 0x45;
                 codigo[iAt + 2] = 0xe0;
                 codigo[iAt + 3] = 0xc9; // leave
                 codigo[iAt + 4] = 0xc3;// ret
+                iAt += 5;
 
                 break;
 
@@ -472,22 +488,11 @@ funcp compilaSimples (FILE *f, uc codigo[])
     for(int i = 0; i < 50; i++)
     {
         free(vetorCodigo[i]);
-        printf("%hhx\n", (*codigo + i));
+        //printf("%hhx\n", codigo[i]);
     }
+    printcodigo(codigo);
     free(vetorCodigo);
     
     return (funcp)(codigo);
 }
 
-/*
-char * calculaDelta(unsigned long rip, unsigned long fp)
-{
-    uc delta[4];
-    unsigned long dt = rip - fp;
-    delta[0] = (unsigned)dt;
-    delta[1] = (unsigned)(dt>>8);
-    delta[2] = (unsigned)(dt>>16);
-    delta[3] = (unsigned)(dt>>24);
-    return delta;
-}
-*/
